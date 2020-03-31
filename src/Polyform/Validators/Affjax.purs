@@ -16,9 +16,9 @@ import Polyform.Validator (Validator) as Polyform
 import Polyform.Validator (hoistFn, hoistFnMV, hoistFnV)
 import Type.Row (type (+))
 
-type HttpError (err :: # Type) = (wrongHttpStatus :: StatusCode | err)
-type AffjaxError (err :: # Type) = (remoteError :: String | err)
-type ResponseFormatError (err :: # Type) = (responseFormatError :: String | err)
+type HttpError (err :: Row Type) = (wrongHttpStatus :: StatusCode | err)
+type AffjaxError (err :: Row Type) = (remoteError :: String | err)
+type ResponseFormatError (err :: Row Type) = (responseFormatError :: String | err)
 
 valid :: forall e a. Semigroup e => a -> V e a
 valid = pure
