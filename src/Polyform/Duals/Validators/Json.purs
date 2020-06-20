@@ -28,7 +28,7 @@ module Polyform.Duals.Validators.Json
 import Prelude
 
 import Data.Argonaut (Json, fromBoolean, fromNumber, fromObject, fromString, stringify) as Argonaut
-import Data.Argonaut (class DecodeJson, class EncodeJson, Json, decodeJson, encodeJson, fromArray, stringify)
+import Data.Argonaut (class DecodeJson, class EncodeJson, Json, JsonDecodeError(..), decodeJson, encodeJson, fromArray)
 import Data.Argonaut.Core (jsonNull)
 import Data.Bifunctor (lmap)
 import Data.Either (Either, either)
@@ -118,7 +118,7 @@ field label d =
     DualD fieldPrs fieldSer = unwrap d
     prs = hoistFnMV \obj ->
       case Foreign.lookup label obj of
-        Nothing -> pure $ failure ("no field " <> show label <> " in object " <> show ((stringify <<< unwrap) <$> obj))
+        Nothing -> pure $ failure (AtKey label MissingValue)
         Just (First j) -> do
           res <- runValidator fieldPrs j
           pure $ lmap (extendErr label) res
@@ -210,7 +210,7 @@ tagged label (Dual.Dual (Dual.DualD prs ser))  =
         fieldName = reflectSymbol label
         ser' = ser >>> { t: fieldName, v: _ }
         prs' = prs <<< hoistFnV \{ t, v } → if fieldName /= t
-          then failure ("Incorrect tag: " <> t)
+          then failure (Named "Incorrect tag" (UnexpectedValue (Argonaut.fromString t)))
           else valid v
       in
         dual prs' ser'

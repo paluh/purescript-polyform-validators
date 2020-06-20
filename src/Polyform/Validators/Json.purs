@@ -21,7 +21,7 @@ module Polyform.Validators.Json
 
 import Prelude
 
-import Data.Argonaut (Json, caseJson, jsonParser, stringify, toArray, toBoolean, toNumber, toObject, toString)
+import Data.Argonaut (Json, JsonDecodeError(..), caseJson, jsonParser, toArray, toBoolean, toNumber, toObject, toString)
 import Data.Array ((!!))
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
@@ -55,7 +55,7 @@ json = hoistFnV $ jsonParser >>> case _ of
   Right j -> pure j
   Left e -> invalid ([inj (SProxy :: SProxy "jsonDecoding") e])
 
-type JsonError r = (json :: { path :: List String, msg :: String } | r)
+type JsonError r = (json :: { path :: List String, msg :: JsonDecodeError } | r)
 type Validator m e a = Validators.Validator m (JsonError e) Json a
 
 jsType :: Json -> String
@@ -69,13 +69,13 @@ jsType = caseJson
 
 _json = SProxy :: SProxy "json"
 
-failure :: forall e a. String -> V (Errors (JsonError e)) a
+failure :: forall e a. JsonDecodeError -> V (Errors (JsonError e)) a
 failure msg = fail $ inj _json { path: Nil, msg: msg }
 
 extendErrPath
   :: String
-  -> { path :: List String, msg :: String }
-  -> { path :: List String, msg :: String }
+  -> { path :: List String, msg :: JsonDecodeError }
+  -> { path :: List String, msg :: JsonDecodeError }
 extendErrPath p e = { path: p:e.path, msg: e.msg }
 
 extendErr :: forall e. String -> Errors (JsonError e) -> Errors (JsonError e)
@@ -87,31 +87,31 @@ extendErr s errs =
 int :: forall m e. Monad m => Validator m e Int
 int = hoistFnV $ \v ->
   case toNumber v >>= fromNumber of
-    Nothing -> failure (jsType v <> " is not an int")
+    Nothing -> failure (TypeMismatch "Int")
     Just n -> pure n
 
 boolean :: forall m e. Monad m => Validator m e Boolean
 boolean = hoistFnV $ \v ->
   case toBoolean v of
-    Nothing -> failure (jsType v <> " is not a number")
+    Nothing -> failure (TypeMismatch "Boolean")
     Just x -> pure x
 
 number :: forall m e. Monad m => Validator m e Number
 number = hoistFnV $ \v ->
   case toNumber v of
-    Nothing -> failure (jsType v <> " is not a number")
+    Nothing -> failure (TypeMismatch "Number")
     Just x -> pure x
 
 object :: forall m e. Monad m => Validator m e (Object Json)
 object = hoistFnV $ \v ->
   case toObject v of
-    Nothing -> failure (jsType v <> " is not an object")
+    Nothing -> failure (TypeMismatch "Object")
     Just o -> pure o
 
 string :: forall m e. Monad m => Validator m e String
 string = hoistFnV $ \v ->
   case toString v of
-    Nothing -> failure (jsType v <> " is not a string")
+    Nothing -> failure (TypeMismatch "String")
     Just s -> pure s
 
 field
@@ -123,7 +123,7 @@ field
 field f nested = hoistFnMV (\v ->
   case lookup f v of
     Nothing -> pure $
-      failure ("no field " <> show f <> " in object " <> show (stringify <$> v))
+      failure (AtKey f MissingValue)
     Just j -> do
       res <- runValidator nested j
       pure $ lmap (extendErr f) res)
@@ -159,13 +159,13 @@ optionalField' f nested = object >>> optionalField f nested
 array :: forall m e. Monad m => Validator m e (Array Json)
 array = hoistFnV $ \v ->
   case toArray v of
-    Nothing -> failure (jsType v <> " is not an array")
+    Nothing -> failure (TypeMismatch "Array")
     Just a -> pure a
 
 elem :: forall m e a. Monad m => Int -> Validator m e a -> Validator m e a
 elem i v = array >>> hoistFnMV (\arr ->
   case arr !! i of
-    Nothing -> pure $ failure ("no element at index " <> show i)
+    Nothing -> pure $ failure (AtIndex i MissingValue)
     Just a -> runValidator v a)
 
 arrayOf :: forall m e a. Monad m => Validator m e a -> Validator m e (Array a)

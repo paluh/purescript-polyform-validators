@@ -2,8 +2,8 @@ module Test.Duals.Validators.Json where
 
 import Prelude hiding (unit)
 
+import Data.Argonaut (JsonDecodeError(..), fromBoolean, fromNumber, fromObject, fromString, jsonNull, stringify, toObject)
 import Data.Argonaut (fromBoolean, fromNumber) as Argonaut
-import Data.Argonaut (fromBoolean, fromNumber, fromObject, fromString, jsonNull, stringify, toObject)
 import Data.Argonaut (fromString, stringify) as Argounaut
 import Data.Argonaut.Core (Json)
 import Data.Generic.Rep (class Generic)
@@ -166,12 +166,12 @@ suite =
             [ "tag" /\ fromString "S", "value" /\ fromNumber 8.0 ]
           _json = SProxy ∷ SProxy "json"
           errs =
-            [ inj _json { msg: "number is not a string", path: List.Nil }
-            , inj _json { msg: "Incorrect tag: S", path: List.Nil }
-            , inj _json { msg: "Incorrect tag: S", path: List.Nil }
-            , inj _json { msg: "Incorrect tag: S", path: List.Nil }
-            , inj _json { msg: "Incorrect tag: S", path: List.Nil }
-            , inj _json { msg: "Incorrect tag: S", path: List.Nil }
+            [ inj _json { msg: TypeMismatch "String", path: List.Nil }
+            , inj _json { msg: Named "Incorrect tag" (UnexpectedValue (fromString "S")), path: List.Nil }
+            , inj _json { msg: Named "Incorrect tag" (UnexpectedValue (fromString "S")), path: List.Nil }
+            , inj _json { msg: Named "Incorrect tag" (UnexpectedValue (fromString "S")), path: List.Nil }
+            , inj _json { msg: Named "Incorrect tag" (UnexpectedValue (fromString "S")), path: List.Nil }
+            , inj _json { msg: Named "Incorrect tag" (UnexpectedValue (fromString "S")), path: List.Nil }
             ]
         parsedS' ← runValidator (parser sumD) s'
 
